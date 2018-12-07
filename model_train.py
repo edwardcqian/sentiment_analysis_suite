@@ -14,12 +14,12 @@ from keras.callbacks import EarlyStopping, ModelCheckpoint, Callback
 
 import lightgbm as lgb
 
-from helpers import clean_text
-from helpers import re_sample
-from helpers import pr
-from helpers import get_mdl
-from helpers import get_onehot
-from helpers import pred_cutoff
+from utils import clean_text
+from utils import re_sample
+from utils import pr
+from utils import get_mdl
+from utils import get_onehot
+from utils import pred_cutoff
 
 ############################### Loading annotated data ###############################
 print("Loading Data")
@@ -36,7 +36,7 @@ data['merged'] = data['message']
 
 # remove NONE tags (lack of consensus) and duplicates
 training_no_none = data.loc[data['Consensus'] != 'NONE']
-training_no_none = training_no_none.drop_duplicates(subset=['message'])
+# training_no_none = training_no_none.drop_duplicates(subset=['merged'])
 
 y = training_no_none['Consensus']
 y = y.astype('int64')
@@ -51,16 +51,30 @@ X_data.reset_index(drop=True, inplace=True)
 
 temp = pd.concat([y, X_data], join='outer', axis=1)
 temp.columns = ['tags','text']
-temp = temp.drop_duplicates(subset=['text'])
+# temp = temp.drop_duplicates(subset=['text'])
 
 y = temp['tags']
+y += 1
 X_data = temp['text']
 
 # resample data
 # X_data, y = re_sample(X_data, y)
 
 # train test split
-X_train, X_test, y_train, y_test = train_test_split(X_data, y, test_size= 0.40, random_state = 1)
+X_data, X_val, y, y_val = train_test_split(X_data, y, test_size= 0.1, random_state = 1)
+X_train, X_test, y_train, y_test = train_test_split(X_data, y, test_size= 0.1, random_state = 1)
+
+# cleaning 
+y_train.reset_index(drop=True, inplace=True)
+X_train.reset_index(drop=True, inplace=True)
+
+temp = pd.concat([y_train, X_train], join='outer', axis=1)
+temp.columns = ['tags','text']
+temp = temp.drop_duplicates(subset=['text'])
+
+y_train = temp['tags']
+X_train = temp['text']
+
 
 ############################### frequency vectorization ###############################
 from scipy.sparse import csr_matrix, hstack
@@ -70,19 +84,22 @@ word_vectorizer = TfidfVectorizer(stop_words= 'english', analyzer='word', use_id
 word_vectorizer.fit(X_data)
 wtr_vect = word_vectorizer.transform(X_train)
 wts_vect = word_vectorizer.transform(X_test)
+wva_vect = word_vectorizer.transform(X_val)
 # character
 char_vectorizer = TfidfVectorizer(stop_words= 'english', analyzer='char', use_idf = 1, ngram_range = (2,6), max_features = 50000)
 char_vectorizer.fit(X_data)
 ctr_vect = char_vectorizer.transform(X_train)
 cts_vect = char_vectorizer.transform(X_test)
+cva_vect = char_vectorizer.transform(X_val)
 
 tr_vect = hstack([wtr_vect, ctr_vect]).tocsr()
 ts_vect = hstack([wts_vect, cts_vect]).tocsr()
+va_vect = hstack([wva_vect, cva_vect]).tocsr()
 
 ############################### NB-SVM ###############################
 print("Fitting NB-SVM")
 m,r = get_mdl(tr_vect,y_train)
-pred_nbsvm = m.predict_proba(ts_vect.multiply(r))
+pred_nbsvm = m.predict_proba(va_vect.multiply(r))
 
 ############################### LSTM ###############################
 # parameter values
@@ -101,8 +118,12 @@ X_tr = tokenizer.texts_to_sequences(X_train)
 X_tr = sequence.pad_sequences(X_tr, maxlen=maxlen)
 X_ts = tokenizer.texts_to_sequences(X_test)
 X_ts = sequence.pad_sequences(X_ts, maxlen=maxlen)
+X_va = tokenizer.texts_to_sequences(X_val)
+X_va = sequence.pad_sequences(X_va, maxlen=maxlen)
 
-y_tr_one = get_onehot(y_train, num_class)                                                                             
+y_tr_one = get_onehot(y_train, num_class)     
+y_ts_one = get_onehot(y_test, num_class)  
+
 
 lstm_input = Input(shape=(maxlen, ))
 x = Embedding(max_features, embed_size)(lstm_input)
@@ -116,21 +137,22 @@ lstm_model = Model(inputs=lstm_input, outputs=lstm_output)
 lstm_model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
 
 
-file_path=".../weights_base.best.hdf5"
+file_path="lstm_final.hdf5"
 checkpoint = ModelCheckpoint(file_path, monitor='val_loss', verbose=1, save_best_only=True, mode='min')
 early = EarlyStopping(monitor="val_loss", mode="min", patience=2)
 callbacks_list = [checkpoint, early] #early
 
 lstm_model.fit(X_tr, y_tr_one, batch_size=batch_size, epochs=epochs, validation_split=0.1, callbacks=callbacks_list)
+lstm_model.fit(X_tr, y_tr_one, batch_size=batch_size, epochs=epochs, validation_data=(X_ts,y_ts_one), callbacks=callbacks_list)
 # load best weight
 lstm_model.load_weights(file_path)
 
-pred_lstm = lstm_model.predict(X_ts,batch_size=1024,verbose=1)
+pred_lstm = lstm_model.predict(X_tr,batch_size=1024,verbose=1)
 
 
 ############################### GRU with Glove ###############################
 # path to GloVe
-EMBEDDING_FILE = '.../glove.twitter.27B.200d.txt'
+EMBEDDING_FILE = '../glove.twitter.27B.200d.txt'
 
 max_features=50000
 maxlen=150
@@ -147,6 +169,8 @@ X_tr = tokenizer.texts_to_sequences(X_train)
 X_tr = sequence.pad_sequences(X_tr, maxlen=maxlen)
 X_ts = tokenizer.texts_to_sequences(X_test)
 X_ts = sequence.pad_sequences(X_ts, maxlen=maxlen)
+X_va = tokenizer.texts_to_sequences(X_val)
+X_va = sequence.pad_sequences(X_va, maxlen=maxlen)
 
 print("Loading GloVe Embeddings")
 embeddings_index = {}
@@ -170,6 +194,7 @@ for word, i in word_index.items():
         embedding_matrix[i] = embedding_vector
 
 y_tr_one = get_onehot(y_train, num_class)
+y_ts_one = get_onehot(y_test, num_class) 
 
 
 gru_input = Input(shape=(maxlen, ))
@@ -187,15 +212,15 @@ gru_model = Model(gru_input, gru_output)
 gru_model.compile(loss='binary_crossentropy',optimizer='adam',metrics=['accuracy'])
 
 
-file_path=".../weights_lstm.best.hdf5"
+file_path="gru_final.hdf5"
 checkpoint = ModelCheckpoint(file_path, monitor='val_loss', verbose=1, save_best_only=True, mode='min')
 early = EarlyStopping(monitor="val_loss", mode="min", patience=4)
 callbacks_list = [checkpoint, early] #early
 
-gru_model.fit(X_tr, y_tr_one, batch_size=batch_size, epochs=epochs, validation_split=0.1, callbacks=callbacks_list)
+gru_model.fit(X_tr, y_tr_one, batch_size=batch_size, epochs=epochs, validation_data=(X_ts,y_ts_one), callbacks=callbacks_list)
 # load best weight
 gru_model.load_weights(file_path)
-pred_gru = gru_model.predict(X_ts,batch_size=1024,verbose=1)
+pred_gru = gru_model.predict(X_va,batch_size=1024,verbose=1)
 
 
 ############################### LightGBM ###############################
@@ -220,21 +245,37 @@ lgb_model = lgb.train(params,
                     valid_sets=watchlist,
                     verbose_eval=10)
 
-pred_lgb = lgb_model.predict(ts_vect)
+pred_lgb = lgb_model.predict(va_vect)
 
 ############################### ensembly and prediction ###############################
 pred_ens = (pred_nbsvm + pred_lstm + pred_gru + pred_lgb)/4
 
 pred_class, prob = pred_cutoff(pred_ens,0,0,0,0)
 
-pred_class -= 1
+# pred_class -= 1
 
 print(np.sum(pred_class==3)/pred_class.shape[0])
 
-print(precision_score(y_test, pred_class, average = None))
+print(precision_score(y_val, pred_class, average = None))
 
-print(np.mean(precision_score(y_test, pred_class, average = None)[:4]))
+print(np.mean(precision_score(y_val, pred_class, average = None)[:4]))
 
-print(classification_report(y_test, pred_class))
+print(classification_report(y_val, pred_class))
 
-print(accuracy_score(y_test, pred_class))
+print(accuracy_score(y_val, pred_class))
+
+
+
+pred_class, prob = pred_cutoff(pred_ens,0,0,0,0)
+
+# pred_class -= 1
+
+print(np.sum(pred_class==3)/pred_class.shape[0])
+
+print(precision_score(y, pred_class, average = None))
+
+print(np.mean(precision_score(y, pred_class, average = None)[:4]))
+
+print(classification_report(y, pred_class))
+
+print(accuracy_score(y, pred_class))
