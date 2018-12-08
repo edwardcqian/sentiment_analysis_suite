@@ -88,7 +88,7 @@ def get_mdl(x, y):
 
 # create onehot encoding
 def get_onehot(arr, num_class):
-    return np.eye(num_class)[np.array(arr).reshape(-1)+1]
+    return np.eye(num_class)[np.array(arr).reshape(-1)]
 
 # predict classes using argmax, 
 # provide a cutoff probability for each class
