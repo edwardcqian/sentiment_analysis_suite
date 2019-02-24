@@ -133,7 +133,7 @@ def model_lstm(X_train, X_test, y_train, y_test, args):
 
 ############################### GRU with Glove ###############################
 # path to GloVe
-def model_lstm(X_train, X_test, y_train, y_test, args):
+def model_gru(X_train, X_test, y_train, y_test, args):
     EMBEDDING_FILE = args.path_embs
 
     max_features = args.max_feat_gru
@@ -207,7 +207,7 @@ def model_lgb(tr_vect, ts_vect, y_train, y_test, args):
     watchlist = [d_train, d_valid]
     params = {'learning_rate': 0.2,
                 'application': 'multiclass',
-                'num_class': 4,
+                'num_class': args.num_classes,
                 'num_leaves': 31,
                 'verbosity': -1,
                 'metric': 'auc',
@@ -218,6 +218,7 @@ def model_lgb(tr_vect, ts_vect, y_train, y_test, args):
                 'lambda_l1': 1,
                 'lambda_l2': 1}
 
+    print("Fitting LGB")
     lgb_model = lgb.train(params,
                         train_set=d_train,
                         valid_sets=watchlist,
@@ -268,7 +269,7 @@ def get_args(parser):
                         help='Validation split')
     parser.add_argument('--path_data', type=str, default='data/climate_data.csv',
                         help='Path to data')
-    parser.add_argument('--path_embs', type=str, default='data/glove.twitter.27B.200d.txt,
+    parser.add_argument('--path_embs', type=str, default='data/glove.twitter.27B.200d.txt',
                         help='Path to embeddings')
     parser.add_argument('--directory', type=str, default='Model',
                         help='Directory to save the model and the log file to')
@@ -278,5 +279,5 @@ def get_args(parser):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    args = parse_arguments(parser)
+    args = get_args(parser)
     main(args)
