@@ -130,6 +130,10 @@ def model_lstm(X_train, X_test, y_train, y_test, args):
 
     lstm_model.fit(X_tr, y_tr_one, batch_size=batch_size, epochs=epochs, validation_data=(X_ts,y_ts_one), callbacks=callbacks_list)
 
+    print("Saving LSTM structure")
+    lstm_model_json = lstm_model.to_json()
+    with open(args.directory+"lstm_model.json", "wb") as json_file:
+        json_file.write(lstm_model_json)
 
 ############################### GRU with Glove ###############################
 # path to GloVe
@@ -199,6 +203,10 @@ def model_gru(X_train, X_test, y_train, y_test, args):
 
     gru_model.fit(X_tr, y_tr_one, batch_size=batch_size, epochs=epochs, validation_data=(X_ts,y_ts_one), callbacks=callbacks_list)
 
+    print("Saving GRU structure")
+    gru_model_json = gru_model.to_json()
+    with open(args.directory+"gru_model.json", "wb") as json_file:
+        json_file.write(gru_model_json)
 
 ############################### LightGBM ###############################
 def model_lgb(tr_vect, ts_vect, y_train, y_test, args):
@@ -271,8 +279,16 @@ def get_args(parser):
                         help='Path to data')
     parser.add_argument('--path_embs', type=str, default='data/glove.twitter.27B.200d.txt',
                         help='Path to embeddings')
-    parser.add_argument('--directory', type=str, default='Model',
+    parser.add_argument('--directory', type=str, default='Model/',
                         help='Directory to save the model and the log file to')
+    parser.add_argument('--skip_nbsvm', action='store_true',
+                        help='If argument is present do not train nbsvm')
+    parser.add_argument('--skip_lstm', action='store_true',
+                        help='If argument is present do not train lstm RNN')
+    parser.add_argument('--skip_gru', action='store_true',
+                        help='If argument is present do not train gru RNN')
+    parser.add_argument('--skip_lgb', action='store_true',
+                        help='If argument is present do not train lgb')
     args = parser.parse_args()
 
     return args
@@ -280,4 +296,6 @@ def get_args(parser):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     args = get_args(parser)
+    if args.directory[-1] != '/':
+        args.directory+='/'
     main(args)
