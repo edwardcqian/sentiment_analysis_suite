@@ -17,7 +17,7 @@ from pandas import Series
 import numpy as np
 from sklearn.linear_model import LogisticRegression
 from scipy.sparse import csr_matrix, hstack
-
+from keras.models import model_from_json
 
 if len(sys.argv) != 4:
     print("usage: cli_model.py <file_path(type: csv)> <x_col_name> <weight_path> <out_file_path>")
@@ -33,6 +33,9 @@ X_data = data[x_col]
 out_path = sys.argv[4]
 
 wt_path = sys.argv[3]
+
+if wt_path[-1] != '/':
+    wt_path+='/'
 
 # word
 print("Frequency Vectorization")
@@ -55,78 +58,33 @@ r = np.load(wt_path+"nbsvm_r.npy")
 pred_nbsvm = m.predict_proba(wc_vect.multiply(r))
 
 # lstm
-# parameter values
-max_features = 20000
-maxlen = 100
-batch_size = 32
-epochs = 50
-num_class = 4
-embed_size = 128
-
-
 print("Tokenizing for LSTM")
 with open(wt_path+"lstm_tok.pkl", "rb") as fin:
-    lstm_tok = pickle.load(fin)
+    lstm_tok,maxlen = pickle.load(fin)
 X_lstm = lstm_tok.texts_to_sequences(X_data)
 X_lstm = sequence.pad_sequences(X_lstm, maxlen=maxlen)
 
-# model structure
-print("LSTM prediction")
-lstm_input = Input(shape=(maxlen, ))
-x = Embedding(max_features, embed_size)(lstm_input)
-x = Bidirectional(LSTM(50, return_sequences=True))(x)
-x = GlobalMaxPooling1D()(x)
-x = Dropout(0.1)(x)
-x = Dense(50, activation="relu")(x)
-x = Dropout(0.1)(x)
-lstm_output = Dense(num_class, activation="sigmoid")(x)
-lstm_model = Model(inputs=lstm_input, outputs=lstm_output)
-lstm_model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
+with open(wt_path+"lstm_model.json", "r") as json_file:
+    lstm_model_json = json_file.read()
 
-file_path= wt_path+"lstm_final.hdf5"
-
-lstm_model.load_weights(file_path)
+lstm_model = model_from_json(lstm_model_json)
+lstm_model.load_weights(wt_path+"lstm_final.hdf5")
 
 pred_lstm = lstm_model.predict(X_lstm,batch_size=1024,verbose=1)
 
 
 # gru
-max_features=50000
-maxlen=150
-batch_size = 128
-epochs = 20
-num_class = 4
-embed_size=200
-
-
 print("Tokenizing for GRU")
 with open(wt_path+"gru_tok.pkl", "rb") as fin:
-    gru_tok = pickle.load(fin)
+    gru_tok,maxlen = pickle.load(fin)
 X_gru = gru_tok.texts_to_sequences(X_data)
 X_gru = sequence.pad_sequences(X_gru, maxlen=maxlen)
 
-print("Loading GloVe Embeddings")
-embedding_matrix = np.load(wt_path+"glove_embedding.npy")
+with open(wt_path+"gru_model.json", "r") as json_file:
+    gru_model_json = json_file.read()
 
-# model structure
-print("GRU prediction")
-gru_input = Input(shape=(maxlen, ))
-x = Embedding(max_features, embed_size, weights=[embedding_matrix],trainable = False)(gru_input)
-x = SpatialDropout1D(0.2)(x)
-x = Bidirectional(GRU(128, return_sequences=True, reset_after=True, recurrent_activation='sigmoid'))(x)
-x = Conv1D(64, kernel_size = 3, padding = "valid", kernel_initializer = "glorot_uniform")(x)
-avg_pool = GlobalAveragePooling1D()(x)
-max_pool = GlobalMaxPooling1D()(x)
-x = concatenate([avg_pool, max_pool]) 
-x = Dense(128, activation='relu')(x)
-x = Dropout(0.1)(x)
-gru_output = Dense(4, activation="sigmoid")(x)
-gru_model = Model(gru_input, gru_output)
-gru_model.compile(loss='binary_crossentropy',optimizer='adam',metrics=['accuracy'])
-
-file_path= wt_path+"gru_final.hdf5"
-
-gru_model.load_weights(file_path)
+gru_model = model_from_json(gru_model_json)
+gru_model.load_weights(wt_path+"gru_final.hdf5")
 pred_gru = gru_model.predict(X_gru,batch_size=1024,verbose=1)
 
 
@@ -137,6 +95,8 @@ with open(wt_path+"lgb.pkl", "rb") as fin:
 
 pred_lgb = lgb_model.predict(wc_vect)
 
+
+# all together
 pred_ens = (pred_nbsvm + pred_lstm + pred_gru + pred_lgb)/4
 
 pred_class = np.argmax(pred_ens,axis=1)
@@ -146,3 +106,4 @@ pred_class -= 1
 temp = pd.Series(pred_class)
 
 temp.to_csv(out_path,index=False)
+
