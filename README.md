@@ -7,12 +7,19 @@ This repo contains a suite of python script to train your own ensemble model for
 python model_train.py --option_arguments
 ```
 Train the 4 individual models using the given training data, saves the model files into the given model folder
+#### Data Format
+The dataset is a csv file with two columns, label and text. Where label is the sentiment tags.
+|label|text|
+|---|---|
+|-1 |I hate pie!|
+|1 |I love pie!|
+
 #### Training Arguments
 ##### General Arguments
 
 - `--num_classes`: Number of classes in your dataset 
 - `--val_split`: Proportion of data to use for validation during training
-- `--path_data`: Path to data in csv format (i.e. `/home/data/my_data/training.csv`)
+- `--path_data`: Path to data in csv format (e.g. `/home/data/my_data/training.csv`)
 - `--path_embs`: Path to word embedding to be used in the model
 - `--directory`: Directory to save model and log files to 
 - `--skip_nbsvm`: Do not train the nbsvm model
@@ -36,3 +43,19 @@ GRU
 - `--recurrent_size_gru`: Size of the recurrent layer for GRU
 - `--batch_size_gru`: training batch size for GRU
 - `--max_feat_gru`: Max number of word features for GRU
+
+### Prediction
+```
+python model_predict.py <file_path(type: csv)> <x_col_name> <weight_path> <out_file_path>
+```
+Use the trained models to predict the given dataset, and save the results as csv
+#### Data Format
+|text|
+|---|
+|I dislike pie.|
+
+#### Prediction arguments
+`file_path`: path to data in csv format (e.g. `/home/data/my_data/to_predict.csv`)
+`x_col_name`: text columns to predict (e.g. `text` or `user_message`)
+`weight_path`: where the models are saved (`directory` of training script)
+`out_file_path`: where to store the prediction result
