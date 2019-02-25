@@ -1,4 +1,4 @@
-import sys
+import sys, os
 import pandas as pd
 import numpy as np
 import argparse
@@ -9,7 +9,7 @@ import pickle, os
 
 from keras.models import Model
 from keras.layers import Dense, Embedding, Input, Activation, Conv1D, Flatten, MaxPooling1D, Add, concatenate, SpatialDropout1D
-from keras.layers import LSTM, Bidirectional, GlobalMaxPooling1D, Dropout, CuDNNLSTM, CuDNNGRU, GlobalAveragePooling1D
+from keras.layers import LSTM, Bidirectional, GlobalMaxPooling1D, Dropout, CuDNNLSTM, LSTM, CuDNNGRU, GRU, GlobalAveragePooling1D
 from keras.preprocessing import text, sequence
 from keras.callbacks import EarlyStopping, ModelCheckpoint, Callback
 
@@ -24,10 +24,14 @@ from utils import pred_cutoff
 
 from scipy.sparse import csr_matrix, hstack
 
+import tensorflow as tf
+import keras.backend.tensorflow_backend as K_tf
+
 ############################### Loading annotated data ###############################
 def load_data(args):
     print("Loading Data")
     data = pd.read_csv(args.path_data)
+    data = data.dropna(subset=['message'])
     training_no_none = data.loc[data['Consensus'] != 'NONE']
     # training_no_none = training_no_none.drop_duplicates(subset=['merged'])
 
@@ -36,7 +40,7 @@ def load_data(args):
     y.value_counts()
 
     print("Cleaning Data")
-    X_data = training_no_none['merged'].apply(clean_text)
+    X_data = training_no_none['message'].apply(clean_text)
 
     y.reset_index(drop=True, inplace=True)
     X_data.reset_index(drop=True, inplace=True)
@@ -84,9 +88,10 @@ def model_nbsvm(tr_vect, ts_vect, y_train, y_test, args):
     m,r = get_mdl(tr_vect,y_train)
 
     print("Saving NB-SVM")
-    filename = '/nbsvm.pkl'
-    pickle.dump(m, open(args.directory+filename, 'wb'))
-    filename = '/nbsvm_r'
+    filename = 'nbsvm.pkl'
+    with open(args.directory+filename, 'wb') as f:
+        pickle.dump(m,f)
+    filename = 'nbsvm_r'
     np.save(args.directory+filename, r)
 
 ############################### LSTM ###############################
@@ -108,12 +113,17 @@ def model_lstm(X_train, X_test, y_train, y_test, args):
     X_ts = tokenizer.texts_to_sequences(X_test)
     X_ts = sequence.pad_sequences(X_ts, maxlen=maxlen)
 
+    tmp_lst = [tokenizer,maxlen]
+
+    with open(args.directory+"lstm_tok.pkl", "wb") as fout:
+        pickle.dump(tmp_lst,fout)
+
     y_tr_one = get_onehot(y_train, num_class)     
     y_ts_one = get_onehot(y_test, num_class)  
 
     lstm_input = Input(shape=(maxlen, ))
     x = Embedding(max_features, embed_size)(lstm_input)
-    x = Bidirectional(CuDNNLSTM(rec_size, return_sequences=True))(x)
+    x = Bidirectional(LSTM(rec_size, return_sequences=True))(x)
     x = GlobalMaxPooling1D()(x)
     x = Dropout(0.1)(x)
     x = Dense(50, activation="relu")(x)
@@ -123,7 +133,7 @@ def model_lstm(X_train, X_test, y_train, y_test, args):
     lstm_model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
 
 
-    file_path=args.directory+"/lstm_final.hdf5"
+    file_path=args.directory+"lstm_final.hdf5"
     checkpoint = ModelCheckpoint(file_path, monitor='val_loss', verbose=1, save_best_only=True, mode='min')
     early = EarlyStopping(monitor="val_loss", mode="min", patience=2)
     callbacks_list = [checkpoint, early] #early
@@ -132,7 +142,7 @@ def model_lstm(X_train, X_test, y_train, y_test, args):
 
     print("Saving LSTM structure")
     lstm_model_json = lstm_model.to_json()
-    with open(args.directory+"lstm_model.json", "wb") as json_file:
+    with open(args.directory+"lstm_model.json", "w") as json_file:
         json_file.write(lstm_model_json)
 
 ############################### GRU with Glove ###############################
@@ -156,6 +166,11 @@ def model_gru(X_train, X_test, y_train, y_test, args):
     X_tr = sequence.pad_sequences(X_tr, maxlen=maxlen)
     X_ts = tokenizer.texts_to_sequences(X_test)
     X_ts = sequence.pad_sequences(X_ts, maxlen=maxlen)
+
+    tmp_lst = [tokenizer,maxlen]
+
+    with open(args.directory+"gru_tok.pkl", "wb") as fout:
+        pickle.dump(tmp_lst,fout)
 
     print("Loading GloVe Embeddings")
     embeddings_index = {}
@@ -184,7 +199,8 @@ def model_gru(X_train, X_test, y_train, y_test, args):
     gru_input = Input(shape=(maxlen, ))
     x = Embedding(max_features, embed_size, weights=[embedding_matrix],trainable = False)(gru_input)
     x = SpatialDropout1D(0.2)(x)
-    x = Bidirectional(CuDNNGRU(rec_size, return_sequences=True))(x)
+    x = Bidirectional(GRU(rec_size, return_sequences=True))(x)
+    # x = Bidirectional(CuDNNGRU(rec_size, return_sequences=True, reset_after=True, recurrent_activation='sigmoid'))(x)
     x = Conv1D(64, kernel_size = 3, padding = "valid", kernel_initializer = "glorot_uniform")(x)
     avg_pool = GlobalAveragePooling1D()(x)
     max_pool = GlobalMaxPooling1D()(x)
@@ -201,11 +217,11 @@ def model_gru(X_train, X_test, y_train, y_test, args):
     early = EarlyStopping(monitor="val_loss", mode="min", patience=4)
     callbacks_list = [checkpoint, early] #early
 
-    gru_model.fit(X_tr, y_tr_one, batch_size=batch_size, epochs=epochs, validation_data=(X_ts,y_ts_one), callbacks=callbacks_list)
+    # gru_model.fit(X_tr, y_tr_one, batch_size=batch_size, epochs=epochs, validation_data=(X_ts,y_ts_one), callbacks=callbacks_list)
 
     print("Saving GRU structure")
     gru_model_json = gru_model.to_json()
-    with open(args.directory+"gru_model.json", "wb") as json_file:
+    with open(args.directory+"gru_model.json", "w") as json_file:
         json_file.write(gru_model_json)
 
 ############################### LightGBM ###############################
@@ -222,7 +238,7 @@ def model_lgb(tr_vect, ts_vect, y_train, y_test, args):
                 'data_random_seed': 2,
                 'bagging_fraction': 0.8,
                 'feature_fraction': 0.6,
-                'nthread': 4,
+                'nthread': 15,
                 'lambda_l1': 1,
                 'lambda_l2': 1}
 
@@ -232,7 +248,7 @@ def model_lgb(tr_vect, ts_vect, y_train, y_test, args):
                         valid_sets=watchlist,
                         verbose_eval=10)
     print("Saving LGB")
-    filename = '/lgb.pkl'
+    filename = 'lgb.pkl'
     pickle.dump(lgb_model, open(args.directory+filename, 'wb'))
 
 def main(args):
@@ -240,16 +256,22 @@ def main(args):
     print('Reading Data')
     X_train, X_test, y_train, y_test = load_data(args)
 
-    tr_vect, ts_vect = model_tfidf(X_train, X_test, y_train, y_test,args)
+    if not args.skip_nbsvm or not args.skip_lgb:
+        tr_vect, ts_vect = model_tfidf(X_train, X_test, y_train, y_test,args)
 
-    model_nbsvm(tr_vect, ts_vect, y_train, y_test,args)
+    if not args.skip_nbsvm:
+        model_nbsvm(tr_vect, ts_vect, y_train, y_test,args)
 
-    model_lgb(tr_vect, ts_vect, y_train, y_test,args)
+    if not args.skip_lstm:
+        model_lstm(X_train, X_test, y_train, y_test,args)
 
-    model_lstm(X_train, X_test, y_train, y_test,args)
+    if not args.skip_gru:
+        model_gru(X_train, X_test, y_train, y_test,args)
 
-    model_gru(X_train, X_test, y_train, y_test,args)
+    if not args.skip_lgb:
+        model_lgb(tr_vect, ts_vect, y_train, y_test,args)
 
+    
 def get_args(parser):
     parser.add_argument('--num_classes', type=int, required=True,
                         help='Number of sentiment classes')
@@ -298,4 +320,19 @@ if __name__ == '__main__':
     args = get_args(parser)
     if args.directory[-1] != '/':
         args.directory+='/'
+    
+    if not os.path.exists(args.directory):
+        os.makedirs(args.directory)
+
+    if K_tf._get_available_gpus():
+        config = tf.ConfigProto()
+        config.gpu_options.allow_growth = True  
+        config.log_device_placement = True  
+        sess = tf.Session(config=config)
+        K_tf.set_session(sess) 
+
+        # use CuDNN
+        LSTM = CuDNNLSTM
+        GRU = CuDNNGRU
+
     main(args)
