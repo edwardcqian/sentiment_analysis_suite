@@ -9,6 +9,7 @@ python model_train.py --option_arguments
 Train the 4 individual models using the given training data, saves the model files into the given model folder
 #### Data Format
 The dataset is a csv file with two columns, label and text. Where label is the sentiment tags.
+
 |label|text|
 |---|---|
 |-1 |I hate pie!|
