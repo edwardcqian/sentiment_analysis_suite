@@ -69,11 +69,15 @@ def model_tfidf(X_train, X_test, y_train, y_test, args):
     print("tfidf Vectorization")
     word_vectorizer = TfidfVectorizer(stop_words= 'english', analyzer='word', use_idf = 1, ngram_range = (1,1), max_features = 5000)
     word_vectorizer.fit(X_train)
+    with open(args.directory+"wvec.pkl", "wb") as fout:
+        pickle.dump(word_vectorizer, fout)
     wtr_vect = word_vectorizer.transform(X_train)
     wts_vect = word_vectorizer.transform(X_test)
     # character
     char_vectorizer = TfidfVectorizer(stop_words= 'english', analyzer='char', use_idf = 1, ngram_range = (2,6), max_features = 50000)
     char_vectorizer.fit(X_train)
+    with open(args.directory+"cvec.pkl", "wb") as fout:
+        pickle.dump(char_vectorizer, fout)
     ctr_vect = char_vectorizer.transform(X_train)
     cts_vect = char_vectorizer.transform(X_test)
 
