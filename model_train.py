@@ -36,8 +36,8 @@ def load_data(args):
     # training_no_none = training_no_none.drop_duplicates(subset=['merged'])
 
     y = data[args.label]
-    y = y.astype('int64')
-    y.value_counts()
+    # y = y.astype('int64')
+    # y.value_counts()
 
     print("Cleaning Data")
     X_data = data[args.text].apply(clean_text)
@@ -52,12 +52,12 @@ def load_data(args):
     y = temp['tags']
     X_data = temp['text']
 
-    tag_dic = {} 
-    for tag in y.unique(): 
-        if tag not in tag_dic: 
-            tag_dic[tag] = len(tag_dic) 
+    # tag_dic = {} 
+    # for tag in y.unique(): 
+    #     if tag not in tag_dic: 
+    #         tag_dic[tag] = len(tag_dic) 
 
-    y = y.apply(lambda x: tag_dic[x])
+    # y = y.apply(lambda x: tag_dic[x])
 
     X_train, X_test, y_train, y_test = train_test_split(X_data, y, test_size= args.val_split, random_state = 1)
     return X_train, X_test, y_train, y_test
