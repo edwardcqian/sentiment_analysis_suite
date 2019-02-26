@@ -5,7 +5,7 @@ from sklearn.model_selection import train_test_split
 if not os.path.exists('test'):
     print('test directory not found, please see [url] for instructions')
     sys.exit()
-if not os.path.exists('test/training.tsv'):
+if not os.path.exists('test/train.tsv'):
     print('test/train.tsv not found, please see [url] for instructions')
     sys.exit()
 
