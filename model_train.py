@@ -217,7 +217,7 @@ def model_gru(X_train, X_test, y_train, y_test, args):
     early = EarlyStopping(monitor="val_loss", mode="min", patience=4)
     callbacks_list = [checkpoint, early] #early
 
-    # gru_model.fit(X_tr, y_tr_one, batch_size=batch_size, epochs=epochs, validation_data=(X_ts,y_ts_one), callbacks=callbacks_list)
+    gru_model.fit(X_tr, y_tr_one, batch_size=batch_size, epochs=epochs, validation_data=(X_ts,y_ts_one), callbacks=callbacks_list)
 
     print("Saving GRU structure")
     gru_model_json = gru_model.to_json()
@@ -283,9 +283,9 @@ def get_args(parser):
                         help='Size of the LSTM embedding layer')
     parser.add_argument('--emb_size_gru', type=int, default=200,
                         help='Size of the GRU embedding layer (NOTE: must match word embedding file used)')
-    parser.add_argument('--epochs_lstm', type=int, default=1,
+    parser.add_argument('--epochs_lstm', type=int, default=10,
                         help='Number of max LSTM epochs')
-    parser.add_argument('--epochs_gru', type=int, default=1,
+    parser.add_argument('--epochs_gru', type=int, default=10,
                         help='Number of max GRU epochs')
     parser.add_argument('--recurrent_size_lstm', type=int, default=50,
                         help='Size of the lstm recurrent layers')
