@@ -91,7 +91,7 @@ Use the movie review kaggle dataset to ensure correct setup.
 3. Setup data: `python movie_review_setup.py`
 4. Train model: `python model_train.py --path_data test/train_data.csv --path_emb ~/Documents/work/climate/glove.twitter.27B.200d.txt --num_classes 5 --label Sentiment --text Phrase --max_feat_gru 15000 --epochs_lstm 20 --epochs_gru 20`
 5. Predict model: `python model_predict.py test/test_data.csv Phrase Model test/pred.csv`
-6. check results:
+6. check results: `python move_review_accuracy.py`
 
 ## Expected output 
 0.6794181724977573
