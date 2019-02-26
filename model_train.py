@@ -32,15 +32,15 @@ def load_data(args):
     print("Loading Data")
     data = pd.read_csv(args.path_data)
     data = data.dropna(subset=[args.text])
-    training_no_none = data.loc[data[args.label] != 'NONE']
+    # training_no_none = data.loc[data[args.label] != 'NONE']
     # training_no_none = training_no_none.drop_duplicates(subset=['merged'])
 
-    y = training_no_none[args.label]
+    y = data[args.label]
     y = y.astype('int64')
     y.value_counts()
 
     print("Cleaning Data")
-    X_data = training_no_none[args.text].apply(clean_text)
+    X_data = data[args.text].apply(clean_text)
 
     y.reset_index(drop=True, inplace=True)
     X_data.reset_index(drop=True, inplace=True)
