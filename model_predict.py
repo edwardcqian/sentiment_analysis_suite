@@ -19,6 +19,8 @@ from sklearn.linear_model import LogisticRegression
 from scipy.sparse import csr_matrix, hstack
 from keras.models import model_from_json
 
+from utils import clean_text
+
 if len(sys.argv) != 4:
     print("usage: cli_model.py <file_path(type: csv)> <x_col_name> <weight_path> <out_file_path>")
     sys.exit()
@@ -28,7 +30,7 @@ path = sys.argv[1]
 x_col = sys.argv[2]
 data = pd.read_csv(path)
 
-X_data = data[x_col]
+X_data = data[x_col].apply(clean_text)
 
 out_path = sys.argv[4]
 

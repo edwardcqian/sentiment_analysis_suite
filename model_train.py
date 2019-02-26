@@ -134,7 +134,7 @@ def model_lstm(X_train, X_test, y_train, y_test, args):
     x = Dropout(0.1)(x)
     lstm_output = Dense(num_class, activation="sigmoid")(x)
     lstm_model = Model(inputs=lstm_input, outputs=lstm_output)
-    lstm_model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
+    lstm_model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
 
 
     file_path=args.directory+"lstm_final.hdf5"
@@ -213,7 +213,7 @@ def model_gru(X_train, X_test, y_train, y_test, args):
     x = Dropout(0.1)(x)
     gru_output = Dense(num_class, activation="sigmoid")(x)
     gru_model = Model(gru_input, gru_output)
-    gru_model.compile(loss='binary_crossentropy',optimizer='adam',metrics=['accuracy'])
+    gru_model.compile(loss='categorical_crossentropy',optimizer='adam',metrics=['accuracy'])
 
 
     file_path=args.directory+"gru_final.hdf5"
