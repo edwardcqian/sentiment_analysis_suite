@@ -31,16 +31,16 @@ import keras.backend.tensorflow_backend as K_tf
 def load_data(args):
     print("Loading Data")
     data = pd.read_csv(args.path_data)
-    data = data.dropna(subset=['message'])
-    training_no_none = data.loc[data['Consensus'] != 'NONE']
+    data = data.dropna(subset=[args.text])
+    training_no_none = data.loc[data[args.label] != 'NONE']
     # training_no_none = training_no_none.drop_duplicates(subset=['merged'])
 
-    y = training_no_none['Consensus']
+    y = training_no_none[args.label]
     y = y.astype('int64')
     y.value_counts()
 
     print("Cleaning Data")
-    X_data = training_no_none['message'].apply(clean_text)
+    X_data = training_no_none[args.text].apply(clean_text)
 
     y.reset_index(drop=True, inplace=True)
     X_data.reset_index(drop=True, inplace=True)
@@ -238,7 +238,7 @@ def model_lgb(tr_vect, ts_vect, y_train, y_test, args):
                 'data_random_seed': 2,
                 'bagging_fraction': 0.8,
                 'feature_fraction': 0.6,
-                'nthread': 15,
+                'nthread': 0,
                 'lambda_l1': 1,
                 'lambda_l2': 1}
 
@@ -273,6 +273,10 @@ def main(args):
 
     
 def get_args(parser):
+    parser.add_argument('--label', type=str, required=True,
+                        help='Column name of label in data')
+    parser.add_argument('--text', type=str, required=True,
+                        help='Column name of text in data')
     parser.add_argument('--num_classes', type=int, required=True,
                         help='Number of sentiment classes')
     parser.add_argument('--emb_size_lstm', type=int, default=200,
