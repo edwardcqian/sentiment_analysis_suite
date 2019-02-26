@@ -21,8 +21,8 @@ from keras.models import model_from_json
 
 from utils import clean_text
 
-if len(sys.argv) != 4:
-    print("usage: cli_model.py <file_path(type: csv)> <x_col_name> <weight_path> <out_file_path>")
+if len(sys.argv) != 5:
+    print("usage: model_predict.py <file_path(type: csv)> <x_col_name> <weight_path> <out_file_path>")
     sys.exit()
 
 # load data
@@ -102,8 +102,6 @@ pred_lgb = lgb_model.predict(wc_vect)
 pred_ens = (pred_nbsvm + pred_lstm + pred_gru + pred_lgb)/4
 
 pred_class = np.argmax(pred_ens,axis=1)
-
-pred_class -= 1
 
 temp = pd.Series(pred_class)
 
