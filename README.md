@@ -56,7 +56,38 @@ Use the trained models to predict the given dataset, and save the results as csv
 |I dislike pie.|
 
 #### Prediction arguments
-`file_path`: path to data in csv format (e.g. `/home/data/my_data/to_predict.csv`)
-`x_col_name`: text columns to predict (e.g. `text` or `user_message`)
-`weight_path`: where the models are saved (`directory` of training script)
-`out_file_path`: where to store the prediction result
+- `file_path`: path to data in csv format (e.g. `/home/data/my_data/to_predict.csv`)
+- `x_col_name`: text columns to predict (e.g. `text` or `user_message`)
+- `weight_path`: where the models are saved (`directory` of training script)
+- `out_file_path`: where to store the prediction result
+
+## Install instruction
+1. clone the repo:
+```
+git clone https://github.com/edwardcqian/sentiment_analysis_suite.git && cd sentiment_analysis_suite
+```
+2. Install the requirements:
+For GPU
+```
+pip install -r requirements_gpu.txt
+```
+For CPU
+```
+pip install -r requirements.txt
+```
+3. download the glove word vector file (WARNING: file is 1.42GB)
+```
+wget http://nlp.stanford.edu/data/glove.twitter.27B.zip
+```
+4. extract to root directory of repo
+```
+unzip -j "glove.twitter.27B.zip" "glove.twitter.27B.200d.txt"
+```
+**Note:** The word embedding used is trained using twitter data, there are several different sets available, some may be better suited for your data.
+## Test setup
+Use the movie review kaggle dataset to ensure correct setup.
+1. Download the Kaggle dataset [here](https://www.kaggle.com/c/sentiment-analysis-on-movie-reviews/data) (a Kaggle account is required)
+2. Create a directory called `test` in the root directory of the repo. Extract the `train.tsv` file into the `test` folder
+3. Run `python movie_review_setup.py`
+4. Run `model_predict.py --path_data
+
