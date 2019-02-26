@@ -88,6 +88,22 @@ unzip -j "glove.twitter.27B.zip" "glove.twitter.27B.200d.txt"
 Use the movie review kaggle dataset to ensure correct setup.
 1. Download the Kaggle dataset [here](https://www.kaggle.com/c/sentiment-analysis-on-movie-reviews/data) (a Kaggle account is required)
 2. Create a directory called `test` in the root directory of the repo. Extract the `train.tsv` file into the `test` folder
-3. Run `python movie_review_setup.py`
-4. Run `model_predict.py --path_data
+3. Setup data: `python movie_review_setup.py`
+4. Train model: `python model_train.py --path_data test/train_data.csv --path_emb ~/Documents/work/climate/glove.twitter.27B.200d.txt --num_classes 5 --label Sentiment --text Phrase --max_feat_gru 15000 --epochs_lstm 20 --epochs_gru 20`
+5. Predict model: `python model_predict.py test/test_data.csv Phrase Model test/pred.csv`
+6. check results:
+
+## Expected output 
+0.6794181724977573
+             precision    recall  f1-score   support
+
+          0       0.70      0.22      0.33       732
+          1       0.58      0.54      0.56      2796
+          2       0.72      0.86      0.79      7845
+          3       0.63      0.57      0.60      3364
+          4       0.66      0.31      0.43       869
+
+avg / total       0.67      0.68      0.66     15606
+
+
 
