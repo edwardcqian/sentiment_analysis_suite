@@ -93,7 +93,8 @@ Use the movie review kaggle dataset to ensure correct setup.
 5. Predict model: `python model_predict.py test/test_data.csv Phrase Model test/pred.csv`
 6. check results: `python move_review_accuracy.py`
 
-## Expected output 
+## Expected output
+``` 
 0.6794181724977573
              precision    recall  f1-score   support
 
@@ -104,6 +105,6 @@ Use the movie review kaggle dataset to ensure correct setup.
           4       0.66      0.31      0.43       869
 
 avg / total       0.67      0.68      0.66     15606
-
+```
 
 
